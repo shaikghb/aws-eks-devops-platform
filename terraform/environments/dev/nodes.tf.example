@@ -1,0 +1,21 @@
+# Rename this file to nodes.tf when you are ready to create the self-managed EC2 worker nodes.
+
+module "nodes" {
+  source = "../../modules/nodes"
+
+  project_name              = var.project_name
+  environment               = var.environment
+  cluster_name              = module.eks.cluster_name
+  cluster_version           = var.cluster_version
+  vpc_id                    = module.vpc.vpc_id
+  private_subnet_ids        = module.vpc.private_subnet_ids
+  node_role_arn             = module.iam.eks_node_role_arn
+  node_security_group_id    = module.security_groups.node_security_group_id
+  node_instance_profile_name = module.iam.eks_node_instance_profile_name
+  node_instance_type        = var.node_instance_type
+  desired_capacity          = var.node_desired_capacity
+  min_size                  = var.node_min_size
+  max_size                  = var.node_max_size
+
+  depends_on = [module.eks]
+}
