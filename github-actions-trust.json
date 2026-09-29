@@ -9,10 +9,8 @@
       "Action": "sts:AssumeRoleWithWebIdentity",
       "Condition": {
         "StringEquals": {
-          "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
-        },
-        "StringLike": {
-          "token.actions.githubusercontent.com:sub": "repo:shaikghb/aws-eks-devops-platform:ref:refs/heads/main"
+          "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+          "token.actions.githubusercontent.com:sub": "repo:shaikghb@319718934/aws-eks-devops-platform@1396416019:ref:refs/heads/main"
         }
       }
     }
