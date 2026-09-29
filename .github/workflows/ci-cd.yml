@@ -1,0 +1,85 @@
+name: EKS CI/CD
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  AWS_REGION: ap-southeast-2
+  ECR_BACKEND: aws-eks-devops-backend
+  ECR_FRONTEND: aws-eks-devops-frontend
+  EKS_CLUSTER: aws-eks-devops-platform-dev-eks
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push backend
+        env:
+          REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+        run: |
+          docker build \
+            -t $REGISTRY/$ECR_BACKEND:${{ github.sha }} \
+            ./app/backend
+
+          docker push \
+            $REGISTRY/$ECR_BACKEND:${{ github.sha }}
+
+      - name: Build and push frontend
+        env:
+          REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+        run: |
+          docker build \
+            -t $REGISTRY/$ECR_FRONTEND:${{ github.sha }} \
+            ./app/frontend
+
+          docker push \
+            $REGISTRY/$ECR_FRONTEND:${{ github.sha }}
+
+      - name: Configure kubectl
+        run: |
+          aws eks update-kubeconfig \
+            --region $AWS_REGION \
+            --name $EKS_CLUSTER
+
+      - name: Deploy backend
+        env:
+          REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+        run: |
+          kubectl set image deployment/backend \
+            backend=$REGISTRY/$ECR_BACKEND:${{ github.sha }}
+
+          kubectl rollout status deployment/backend --timeout=180s
+
+      - name: Deploy frontend
+        env:
+          REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+        run: |
+          kubectl set image deployment/frontend \
+            frontend=$REGISTRY/$ECR_FRONTEND:${{ github.sha }}
+
+          kubectl rollout status deployment/frontend --timeout=180s
+
+      - name: Verify deployment
+        run: |
+          kubectl get pods
+          kubectl get services
+          kubectl get ingress
